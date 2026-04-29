@@ -1,1 +1,12 @@
-
+{
+  "name": "kitene-auto",
+  "version": "1.0.0",
+  "description": "キテね！自動化",
+  "main": "kitene_auto.js",
+  "scripts": {
+    "start": "node kitene_auto.js"
+  },
+  "dependencies": {
+    "puppeteer": "^21.0.0"
+  }
+}
