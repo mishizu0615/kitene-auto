@@ -1,1 +1,40 @@
+name: キテね自動化
 
+on:
+  repository_dispatch:
+    types: [kitene_run]
+
+jobs:
+  kitene:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@v4
+
+      - name: Node.jsセットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 依存パッケージインストール
+        run: npm install
+
+      - name: Puppeteer用Chromiumの依存インストール
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libnss3 libatk1.0-0 libatk-bridge2.0-0 \
+            libcups2 libdrm2 libxkbcommon0 libxcomposite1 \
+            libxdamage1 libxfixes3 libxrandr2 libgbm1 \
+            libpango-1.0-0 libcairo2 libasound2
+
+      - name: キテね実行
+        env:
+          STAFF_NAME:  ${{ github.event.client_payload.staffName }}
+          GIRL_ID:     ${{ github.event.client_payload.girlId }}
+          USERNAME:    ${{ github.event.client_payload.username }}
+          PASSWORD:    ${{ github.event.client_payload.password }}
+          GAS_URL:     ${{ secrets.GAS_URL }}
+        run: node kitene_auto.js
