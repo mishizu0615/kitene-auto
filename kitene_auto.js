@@ -11,8 +11,9 @@ import { URL } from "url";
 const LOGIN_URL   = "https://girls.ranking-deli.jp/login/";
 const KITENE_BASE = "https://girls.ranking-deli.jp/info/kitene/list/";
 const TARGET      = 50;
-const CLICK_DELAY = 3000;
+const CLICK_DELAY = 2000;
 const PAGE_WAIT   = 2500;
+const BTN_WAIT    = 6000;
 // ==========================
 
 const STAFF_NAME = process.env.STAFF_NAME;
@@ -33,6 +34,18 @@ async function closeModal(page) {
     const btn = await page.$(".js-postModalClose");
     if (btn) { await btn.click(); await wait(800); }
   } catch (_) {}
+}
+
+// 人間らしいマウスクリック
+async function humanClick(page, element) {
+  const box = await element.boundingBox();
+  if (!box) throw new Error("boundingBox取得失敗");
+  // ボックス中央付近にランダムオフセット
+  const x = box.x + box.width / 2 + (Math.random() * 6 - 3);
+  const y = box.y + box.height / 2 + (Math.random() * 6 - 3);
+  await page.mouse.move(x, y, { steps: 5 });
+  await wait(100 + Math.random() * 200);
+  await page.mouse.click(x, y);
 }
 
 function reportResult(result) {
@@ -76,14 +89,21 @@ async function main() {
 
   const page = await browser.newPage();
   await page.setViewport({ width: 390, height: 844 });
+
+  // より人間らしいUser-Agent
+  await page.setUserAgent(
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
+  );
+
   let clicked = 0;
 
   try {
     // ---- ログイン ----
     console.log(`[${STAFF_NAME}] ログイン中...`);
     await page.goto(LOGIN_URL, { waitUntil: "networkidle2", timeout: 30000 });
-    await page.type('input[name="username"]', USERNAME, { delay: 60 });
-    await page.type('input[name="password"]', PASSWORD, { delay: 60 });
+    await page.type('input[name="username"]', USERNAME, { delay: 80 });
+    await wait(500);
+    await page.type('input[name="password"]', PASSWORD, { delay: 80 });
     await page.waitForFunction(
       () => !document.querySelector(".js-loginBtn")?.disabled,
       { timeout: 5000 }
@@ -105,7 +125,6 @@ async function main() {
       await wait(PAGE_WAIT);
       await closeModal(page);
 
-      // data-useridでユニークに特定
       const userIds = await page.$$eval(
         ".client_detail_btn_on",
         els => els.map(el => el.getAttribute("data-userid"))
@@ -122,32 +141,45 @@ async function main() {
         continue;
       }
 
-      // data-useridリストを順番にクリック
       for (const userId of userIds) {
         if (clicked >= TARGET) break;
 
         try {
           const btn = await page.$(`.client_detail_btn_on[data-userid="${userId}"]`);
-          if (!btn) {
-            console.log(`[${STAFF_NAME}] userid:${userId} スキップ（押済み）`);
+          if (!btn) continue;
+
+          await btn.scrollIntoView();
+          await wait(300 + Math.random() * 400);
+
+          // 人間らしいマウスクリック
+          await humanClick(page, btn);
+
+          // ボタンが_onから変わるまで待つ（最大6秒）
+          await page.waitForFunction(
+            (uid) => !document.querySelector(`.client_detail_btn_on[data-userid="${uid}"]`),
+            { timeout: BTN_WAIT },
+            userId
+          ).catch(() => {});
+
+          // 反映確認
+          const stillOn = await page.$(`.client_detail_btn_on[data-userid="${userId}"]`);
+          if (stillOn) {
+            console.log(`[${STAFF_NAME}] userid:${userId} 未反映→スキップ`);
             continue;
           }
 
-          await btn.scrollIntoView();
-          await wait(300);
-          await btn.click();
-          await wait(CLICK_DELAY);
           await closeModal(page);
-
           clicked++;
           console.log(`[${STAFF_NAME}] クリック ${clicked}/${TARGET} (userid:${userId})`);
+
+          // ランダム待機（人間らしく）
+          await wait(CLICK_DELAY + Math.random() * 1000);
 
         } catch (e) {
           console.log(`[${STAFF_NAME}] userid:${userId} スキップ: ${e.message}`);
         }
       }
 
-      // まだ足りなければ次ページへ
       if (clicked < TARGET) {
         const hasNext = await page.$(`a.pager_anchor[href*="page=${pageNum + 1}"]`);
         if (!hasNext) {
