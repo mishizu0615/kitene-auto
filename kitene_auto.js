@@ -72,13 +72,9 @@ function reportResult(result) {
   });
 }
 
-async function main() {
-  console.log(`\n🚀 キテね自動化開始`);
-  console.log(`   スタッフ: ${STAFF_NAME}`);
-  console.log(`   ガールID: ${GIRL_ID}\n`);
-
-  const browser = await puppeteer.launch({
+const browser = await puppeteer.launch({
     headless: true,
+    protocolTimeout: 60000,  // ← この1行を追加
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
