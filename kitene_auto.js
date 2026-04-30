@@ -11,7 +11,7 @@ import { URL } from "url";
 const LOGIN_URL   = "https://girls.ranking-deli.jp/login/";
 const KITENE_BASE = "https://girls.ranking-deli.jp/info/kitene/list/";
 const TARGET      = 50;
-const CLICK_DELAY = 2000;
+const CLICK_DELAY = 3000;
 const PAGE_WAIT   = 2500;
 // ==========================
 
