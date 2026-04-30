@@ -1,17 +1,11 @@
 /**
  * kitene_auto.js
  * GitHub Actions上でPuppeteerを使ってキテね！ボタンを自動クリック
- *
- * 環境変数（GitHub Actions secrets/payload から受け取る）:
- *   STAFF_NAME : スタッフ名
- *   GIRL_ID    : 押す相手のガールID
- *   USERNAME   : ログインID
- *   PASSWORD   : パスワード
- *   GAS_URL    : 完了報告先GASのURL
  */
 
-const puppeteer = require("puppeteer");
-const https     = require("https");
+import puppeteer from "puppeteer";
+import https from "https";
+import { URL } from "url";
 
 // ========== 設定 ==========
 const LOGIN_URL   = "https://girls.ranking-deli.jp/login/";
@@ -41,7 +35,6 @@ async function closeModal(page) {
   } catch (_) {}
 }
 
-// 完了結果をGASに報告
 function reportResult(result) {
   if (!GAS_URL) return Promise.resolve();
   return new Promise((resolve) => {
@@ -72,7 +65,7 @@ async function main() {
   console.log(`   ガールID: ${GIRL_ID}\n`);
 
   const browser = await puppeteer.launch({
-    headless: "new",
+    headless: true,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
@@ -121,13 +114,15 @@ async function main() {
         continue;
       }
 
-      // 常に最初のボタンをクリック（クリックするたびにDOMが変わるので0番目を取り続ける）
+      // 常に先頭のボタンをクリック（DOM再構築対策）
       let pageClicked = 0;
       while (clicked < TARGET && pageClicked < btns.length) {
         const fresh = await page.$$(".client_detail_btn_on");
         if (fresh.length === 0) break;
         try {
-          await fresh[0].click();  // 常に最初のボタン
+          await fresh[0].scrollIntoView();
+          await wait(500);
+          await fresh[0].click();
           clicked++;
           pageClicked++;
           console.log(`[${STAFF_NAME}] クリック ${clicked}/${TARGET}`);
@@ -177,22 +172,4 @@ async function main() {
   await reportResult(result);
 }
 
-while (clicked < TARGET && pageClicked < btns.length) {
-        const fresh = await page.$$(".client_detail_btn_on");
-        if (fresh.length === 0) break;
-        try {
-          // ボタンが見える位置までスクロール
-          await fresh[0].scrollIntoView();
-          await wait(500);
-          await fresh[0].click();
-          clicked++;
-          pageClicked++;
-          console.log(`[${STAFF_NAME}] クリック ${clicked}/${TARGET}`);
-          await wait(CLICK_DELAY);
-          await closeModal(page);
-        } catch (_) {
-          console.log(`[${STAFF_NAME}] ボタンスキップ`);
-          break;
-        }
-      }
 main().catch(err => { console.error("Fatal:", err); process.exit(1); });
