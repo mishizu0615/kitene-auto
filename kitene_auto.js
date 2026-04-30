@@ -115,6 +115,7 @@ async function main() {
       }
 
       // 常に先頭のボタンをクリック（DOM再構築対策）
+      // 常に先頭のボタンをクリック（DOM再構築対策）
       let pageClicked = 0;
       while (clicked < TARGET && pageClicked < btns.length) {
         const fresh = await page.$$(".client_detail_btn_on");
@@ -123,6 +124,15 @@ async function main() {
           await fresh[0].scrollIntoView();
           await wait(500);
           await fresh[0].click();
+          
+          // クリック後、ボタン数が減るまで待つ（最大3秒）
+          const beforeCount = fresh.length;
+          await page.waitForFunction(
+            (count) => document.querySelectorAll(".client_detail_btn_on").length < count,
+            { timeout: 3000 },
+            beforeCount
+          ).catch(() => {});
+
           clicked++;
           pageClicked++;
           console.log(`[${STAFF_NAME}] クリック ${clicked}/${TARGET}`);
