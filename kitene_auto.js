@@ -17,7 +17,7 @@ const https     = require("https");
 const LOGIN_URL   = "https://girls.ranking-deli.jp/login/";
 const KITENE_BASE = "https://girls.ranking-deli.jp/info/kitene/list/";
 const TARGET      = 50;
-const CLICK_DELAY = 1500;
+const CLICK_DELAY = 3000;
 const PAGE_WAIT   = 2500;
 // ==========================
 
@@ -177,4 +177,22 @@ async function main() {
   await reportResult(result);
 }
 
+while (clicked < TARGET && pageClicked < btns.length) {
+        const fresh = await page.$$(".client_detail_btn_on");
+        if (fresh.length === 0) break;
+        try {
+          // ボタンが見える位置までスクロール
+          await fresh[0].scrollIntoView();
+          await wait(500);
+          await fresh[0].click();
+          clicked++;
+          pageClicked++;
+          console.log(`[${STAFF_NAME}] クリック ${clicked}/${TARGET}`);
+          await wait(CLICK_DELAY);
+          await closeModal(page);
+        } catch (_) {
+          console.log(`[${STAFF_NAME}] ボタンスキップ`);
+          break;
+        }
+      }
 main().catch(err => { console.error("Fatal:", err); process.exit(1); });
