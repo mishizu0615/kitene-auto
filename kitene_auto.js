@@ -11,7 +11,7 @@ import { URL } from "url";
 const LOGIN_URL   = "https://girls.ranking-deli.jp/login/";
 const KITENE_BASE = "https://girls.ranking-deli.jp/info/kitene/list/";
 const TARGET      = 50;
-const CLICK_DELAY = 2000;
+const CLICK_DELAY = 2000;  // クリック後の待機（ms）
 const PAGE_WAIT   = 2500;
 // ==========================
 
@@ -105,14 +105,16 @@ async function main() {
       await wait(PAGE_WAIT);
       await closeModal(page);
 
-      // 押せるボタンのdata-idを全取得
+      // 押せるボタンのdata-idを全取得（ページ読み込み時に1回だけ）
       const btnIds = await page.$$eval(
         ".client_detail_btn_on",
         els => els.map(el => el.getAttribute("data-id"))
       );
-      console.log(`[${STAFF_NAME}] ページ${pageNum}: 押せるボタン ${btnIds.length}個`);
+      // 重複除去
+      const uniqueIds = [...new Set(btnIds)];
+      console.log(`[${STAFF_NAME}] ページ${pageNum}: 押せるボタン ${uniqueIds.length}個`);
 
-      if (btnIds.length === 0) {
+      if (uniqueIds.length === 0) {
         const hasNext = await page.$(`a.pager_anchor[href*="page=${pageNum + 1}"]`);
         if (!hasNext) {
           console.log(`[${STAFF_NAME}] ⚠️ ボタンなし (${clicked}個で終了)`);
@@ -122,36 +124,38 @@ async function main() {
         continue;
       }
 
-      // data-idを使って1つずつクリック（DOM変化に強い）
-      for (const dataId of btnIds) {
+      // data-idリストを順番にクリック
+      for (const dataId of uniqueIds) {
         if (clicked >= TARGET) break;
 
         try {
-          // data-idで特定のボタンを取得
+          // そのdata-idのボタンが_on状態か確認
           const btn = await page.$(`.client_detail_btn_on[data-id="${dataId}"]`);
           if (!btn) {
-            console.log(`[${STAFF_NAME}] ボタン${dataId} すでに押済みスキップ`);
+            console.log(`[${STAFF_NAME}] id:${dataId} スキップ（押済み）`);
             continue;
           }
 
           await btn.scrollIntoView();
           await wait(300);
           await btn.click();
-
-          // クリック後: _on クラスが消えるまで待つ（最大3秒）
-          await page.waitForFunction(
-            (id) => !document.querySelector(`.client_detail_btn_on[data-id="${id}"]`),
-            { timeout: 3000 },
-            dataId
-          ).catch(() => {});
-
-          clicked++;
-          console.log(`[${STAFF_NAME}] クリック ${clicked}/${TARGET} (id:${dataId})`);
           await wait(CLICK_DELAY);
           await closeModal(page);
 
+          // クリック後に_onが消えているか確認
+          const stillOn = await page.$(`.client_detail_btn_on[data-id="${dataId}"]`);
+          if (stillOn) {
+            console.log(`[${STAFF_NAME}] id:${dataId} クリック失敗（再試行）`);
+            await stillOn.click();
+            await wait(CLICK_DELAY);
+            await closeModal(page);
+          }
+
+          clicked++;
+          console.log(`[${STAFF_NAME}] クリック ${clicked}/${TARGET} (id:${dataId})`);
+
         } catch (e) {
-          console.log(`[${STAFF_NAME}] ボタン${dataId} スキップ: ${e.message}`);
+          console.log(`[${STAFF_NAME}] id:${dataId} スキップ: ${e.message}`);
         }
       }
 
