@@ -121,20 +121,22 @@ async function main() {
         continue;
       }
 
-      let i = 0;
-      while (i < btns.length && clicked < TARGET) {
+      // 常に最初のボタンをクリック（クリックするたびにDOMが変わるので0番目を取り続ける）
+      let pageClicked = 0;
+      while (clicked < TARGET && pageClicked < btns.length) {
         const fresh = await page.$$(".client_detail_btn_on");
-        if (i >= fresh.length) break;
+        if (fresh.length === 0) break;
         try {
-          await fresh[i].click();
+          await fresh[0].click();  // 常に最初のボタン
           clicked++;
+          pageClicked++;
           console.log(`[${STAFF_NAME}] クリック ${clicked}/${TARGET}`);
           await wait(CLICK_DELAY);
           await closeModal(page);
         } catch (_) {
-          console.log(`[${STAFF_NAME}] ボタン${i + 1} スキップ`);
+          console.log(`[${STAFF_NAME}] ボタンスキップ`);
+          break;
         }
-        i++;
       }
 
       if (clicked < TARGET) {
