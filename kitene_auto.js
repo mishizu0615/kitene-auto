@@ -36,11 +36,9 @@ async function closeModal(page) {
   } catch (_) {}
 }
 
-// 人間らしいマウスクリック
 async function humanClick(page, element) {
   const box = await element.boundingBox();
   if (!box) throw new Error("boundingBox取得失敗");
-  // ボックス中央付近にランダムオフセット
   const x = box.x + box.width / 2 + (Math.random() * 6 - 3);
   const y = box.y + box.height / 2 + (Math.random() * 6 - 3);
   await page.mouse.move(x, y, { steps: 5 });
@@ -72,9 +70,14 @@ function reportResult(result) {
   });
 }
 
-const browser = await puppeteer.launch({
+async function main() {
+  console.log(`\n🚀 キテね自動化開始`);
+  console.log(`   スタッフ: ${STAFF_NAME}`);
+  console.log(`   ガールID: ${GIRL_ID}\n`);
+
+  const browser = await puppeteer.launch({
     headless: true,
-    protocolTimeout: 60000,  // ← この1行を追加
+    protocolTimeout: 60000,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
@@ -85,8 +88,6 @@ const browser = await puppeteer.launch({
 
   const page = await browser.newPage();
   await page.setViewport({ width: 390, height: 844 });
-
-  // より人間らしいUser-Agent
   await page.setUserAgent(
     "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
   );
@@ -146,18 +147,15 @@ const browser = await puppeteer.launch({
 
           await btn.scrollIntoView();
           await wait(300 + Math.random() * 400);
-
-          // 人間らしいマウスクリック
           await humanClick(page, btn);
 
-          // ボタンが_onから変わるまで待つ（最大6秒）
+          // ボタンが_onから変わるまで待つ
           await page.waitForFunction(
             (uid) => !document.querySelector(`.client_detail_btn_on[data-userid="${uid}"]`),
             { timeout: BTN_WAIT },
             userId
           ).catch(() => {});
 
-          // 反映確認
           const stillOn = await page.$(`.client_detail_btn_on[data-userid="${userId}"]`);
           if (stillOn) {
             console.log(`[${STAFF_NAME}] userid:${userId} 未反映→スキップ`);
@@ -167,8 +165,6 @@ const browser = await puppeteer.launch({
           await closeModal(page);
           clicked++;
           console.log(`[${STAFF_NAME}] クリック ${clicked}/${TARGET} (userid:${userId})`);
-
-          // ランダム待機（人間らしく）
           await wait(CLICK_DELAY + Math.random() * 1000);
 
         } catch (e) {
