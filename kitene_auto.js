@@ -11,7 +11,7 @@ import { URL } from "url";
 const LOGIN_URL   = "https://girls.ranking-deli.jp/login/";
 const KITENE_BASE = "https://girls.ranking-deli.jp/info/kitene/list/";
 const TARGET      = 50;
-const CLICK_DELAY = 3000;
+const CLICK_DELAY = 2000;
 const PAGE_WAIT   = 2500;
 // ==========================
 
@@ -98,55 +98,70 @@ async function main() {
 
     // ---- ページをまたいで50個クリック ----
     let pageNum = 1;
+
     while (clicked < TARGET) {
       const url = `${KITENE_BASE}?tab=recommend&gender=0&girlid=${GIRL_ID}&page=${pageNum}`;
       await page.goto(url, { waitUntil: "networkidle2", timeout: 30000 });
       await wait(PAGE_WAIT);
       await closeModal(page);
 
-      const btns = await page.$$(".client_detail_btn_on");
-      console.log(`[${STAFF_NAME}] ページ${pageNum}: 押せるボタン ${btns.length}個`);
+      // 押せるボタンのdata-idを全取得
+      const btnIds = await page.$$eval(
+        ".client_detail_btn_on",
+        els => els.map(el => el.getAttribute("data-id"))
+      );
+      console.log(`[${STAFF_NAME}] ページ${pageNum}: 押せるボタン ${btnIds.length}個`);
 
-      if (btns.length === 0) {
+      if (btnIds.length === 0) {
         const hasNext = await page.$(`a.pager_anchor[href*="page=${pageNum + 1}"]`);
-        if (!hasNext) { console.log(`[${STAFF_NAME}] ⚠️ ボタンなし (${clicked}個で終了)`); break; }
+        if (!hasNext) {
+          console.log(`[${STAFF_NAME}] ⚠️ ボタンなし (${clicked}個で終了)`);
+          break;
+        }
         pageNum++;
         continue;
       }
 
-      // 常に先頭のボタンをクリック（DOM再構築対策）
-      // 常に先頭のボタンをクリック（DOM再構築対策）
-      let pageClicked = 0;
-      while (clicked < TARGET && pageClicked < btns.length) {
-        const fresh = await page.$$(".client_detail_btn_on");
-        if (fresh.length === 0) break;
+      // data-idを使って1つずつクリック（DOM変化に強い）
+      for (const dataId of btnIds) {
+        if (clicked >= TARGET) break;
+
         try {
-          await fresh[0].scrollIntoView();
-          await wait(500);
-          await fresh[0].click();
-          
-          // クリック後、ボタン数が減るまで待つ（最大3秒）
-          const beforeCount = fresh.length;
+          // data-idで特定のボタンを取得
+          const btn = await page.$(`.client_detail_btn_on[data-id="${dataId}"]`);
+          if (!btn) {
+            console.log(`[${STAFF_NAME}] ボタン${dataId} すでに押済みスキップ`);
+            continue;
+          }
+
+          await btn.scrollIntoView();
+          await wait(300);
+          await btn.click();
+
+          // クリック後: _on クラスが消えるまで待つ（最大3秒）
           await page.waitForFunction(
-            (count) => document.querySelectorAll(".client_detail_btn_on").length < count,
+            (id) => !document.querySelector(`.client_detail_btn_on[data-id="${id}"]`),
             { timeout: 3000 },
-            beforeCount
+            dataId
           ).catch(() => {});
 
           clicked++;
-          pageClicked++;
-          console.log(`[${STAFF_NAME}] クリック ${clicked}/${TARGET}`);
+          console.log(`[${STAFF_NAME}] クリック ${clicked}/${TARGET} (id:${dataId})`);
           await wait(CLICK_DELAY);
           await closeModal(page);
-        } catch (_) {
-          console.log(`[${STAFF_NAME}] ボタンスキップ`);
-          break;
+
+        } catch (e) {
+          console.log(`[${STAFF_NAME}] ボタン${dataId} スキップ: ${e.message}`);
         }
       }
 
+      // まだ足りなければ次ページへ
       if (clicked < TARGET) {
         const hasNext = await page.$(`a.pager_anchor[href*="page=${pageNum + 1}"]`);
-        if (!hasNext) { console.log(`[${STAFF_NAME}] ⚠️ 次ページなし (${clicked}個で終了)`); break; }
+        if (!hasNext) {
+          console.log(`[${STAFF_NAME}] ⚠️ 次ページなし (${clicked}個で終了)`);
+          break;
+        }
         pageNum++;
       }
     }
