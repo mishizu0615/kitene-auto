@@ -210,6 +210,11 @@ async function main() {
   const result = { name: STAFF_NAME, clicked, success: clicked >= TARGET };
   console.log(`\n${result.success ? "✅" : "⚠️"} ${STAFF_NAME}: ${clicked}個完了`);
 
+  console.log("GAS_URL:", GAS_URL ? GAS_URL : "未設定！");
+  console.log("完了報告送信中...");
+  await reportResult(result);
+  console.log("完了報告送信完了");
+
   await reportResult(result);
 }
 
