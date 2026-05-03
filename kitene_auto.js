@@ -29,11 +29,24 @@ if (!STAFF_NAME || !GIRL_ID || !USERNAME || !PASSWORD) {
 
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
 
-async function closeModal(page) {
+async function reportResult(result) {
+  if (!GAS_URL) return;
   try {
-    const btn = await page.$(".js-postModalClose");
-    if (btn) { await btn.click(); await wait(800); }
-  } catch (_) {}
+    const body = JSON.stringify({
+      type: "kitene_result",
+      staffName: result.name,
+      results: [result],
+    });
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      redirect: "follow",
+    });
+    console.log("完了報告ステータス:", res.status);
+  } catch (e) {
+    console.error("完了報告エラー:", e.message);
+  }
 }
 
 async function humanClick(page, element) {
