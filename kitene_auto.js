@@ -4,7 +4,6 @@
  */
 
 import puppeteer from "puppeteer";
-import https from "https";
 import { URL } from "url";
 
 // ========== 設定 ==========
@@ -29,24 +28,11 @@ if (!STAFF_NAME || !GIRL_ID || !USERNAME || !PASSWORD) {
 
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
 
-async function reportResult(result) {
-  if (!GAS_URL) return;
+async function closeModal(page) {
   try {
-    const body = JSON.stringify({
-      type: "kitene_result",
-      staffName: result.name,
-      results: [result],
-    });
-    const res = await fetch(GAS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body,
-      redirect: "follow",
-    });
-    console.log("完了報告ステータス:", res.status);
-  } catch (e) {
-    console.error("完了報告エラー:", e.message);
-  }
+    const btn = await page.$(".js-postModalClose");
+    if (btn) { await btn.click(); await wait(800); }
+  } catch (_) {}
 }
 
 async function humanClick(page, element) {
@@ -59,28 +45,25 @@ async function humanClick(page, element) {
   await page.mouse.click(x, y);
 }
 
-function reportResult(result) {
-  if (!GAS_URL) return Promise.resolve();
-  return new Promise((resolve) => {
+async function reportResult(result) {
+  if (!GAS_URL) return;
+  try {
     const body = JSON.stringify({
       type: "kitene_result",
       staffName: result.name,
       results: [result],
     });
-    const url = new URL(GAS_URL);
-    const req = https.request({
-      hostname: url.hostname,
-      path: url.pathname + url.search,
+    console.log("完了報告送信中... GAS_URL:", GAS_URL);
+    const res = await fetch(GAS_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(body),
-      },
-    }, () => resolve());
-    req.on("error", () => resolve());
-    req.write(body);
-    req.end();
-  });
+      headers: { "Content-Type": "application/json" },
+      body,
+      redirect: "follow",
+    });
+    console.log("完了報告ステータス:", res.status);
+  } catch (e) {
+    console.error("完了報告エラー:", e.message);
+  }
 }
 
 async function main() {
@@ -162,7 +145,6 @@ async function main() {
           await wait(300 + Math.random() * 400);
           await humanClick(page, btn);
 
-          // ボタンが_onから変わるまで待つ
           await page.waitForFunction(
             (uid) => !document.querySelector(`.client_detail_btn_on[data-userid="${uid}"]`),
             { timeout: BTN_WAIT },
@@ -222,12 +204,6 @@ async function main() {
 
   const result = { name: STAFF_NAME, clicked, success: clicked >= TARGET };
   console.log(`\n${result.success ? "✅" : "⚠️"} ${STAFF_NAME}: ${clicked}個完了`);
-
-  console.log("GAS_URL:", GAS_URL ? GAS_URL : "未設定！");
-  console.log("完了報告送信中...");
-  await reportResult(result);
-  console.log("完了報告送信完了");
-
   await reportResult(result);
 }
 
