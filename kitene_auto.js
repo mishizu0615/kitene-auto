@@ -20,6 +20,7 @@ const GIRL_ID    = process.env.GIRL_ID;
 const USERNAME   = process.env.USERNAME;
 const PASSWORD   = process.env.PASSWORD;
 const GAS_URL    = process.env.GAS_URL;
+const TOTAL      = process.env.TOTAL || '1';
 
 if (!STAFF_NAME || !GIRL_ID || !USERNAME || !PASSWORD) {
   console.error("❌ 環境変数が不足しています");
@@ -52,6 +53,7 @@ async function reportResult(result) {
       type: "kitene_result",
       staffName: result.name,
       results: [result],
+      total: parseInt(TOTAL),
     });
     console.log("完了報告送信中... GAS_URL:", GAS_URL);
     const res = await fetch(GAS_URL, {
