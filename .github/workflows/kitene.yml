@@ -4,6 +4,10 @@ on:
   repository_dispatch:
     types: [kitene_run]
 
+concurrency:
+  group: kitene-${{ github.event.client_payload.staffName }}
+  cancel-in-progress: false
+
 jobs:
   kitene:
     runs-on: ubuntu-latest
@@ -37,4 +41,5 @@ jobs:
           USERNAME:    ${{ github.event.client_payload.username }}
           PASSWORD:    ${{ github.event.client_payload.password }}
           GAS_URL:     ${{ secrets.GAS_URL }}
+          TOTAL:       ${{ github.event.client_payload.total }}
         run: node kitene_auto.js
